@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的摄影作品展示</title>
+
+    <!-- ===================== 样式开始 ===================== -->
+    <style>
+        /* ----- 全局基础 ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #fff;
+            overflow: hidden;          /* 禁用滚动条 */
+            min-height: 100vh;
+        }
+
+        /* ----- 画廊主容器 ----- */
+        .gallery-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* ----- 画廊卡片 ----- */
+        .gallery {
+            position: relative;
+            width: 80%;
+            max-width: 1200px;
+            height: 70vh;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);   /* 毛玻璃效果 */
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5),
+                        inset 0 0 15px rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+        }
+
+        /* ----- 照片展示区 ----- */
+        .photo-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .photo {
+            max-width: 90%;
+            max-height: 70%;
+            object-fit: contain;
+            transition: transform 0.5s ease-in-out;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        /* ----- 照片信息面板 ----- */
+        .photo-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 300px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .photo-info h3 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            color: #ffd700;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+        }
+        .photo-specs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            font-size: 0.9em;
+        }
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        .spec-label { color: #888; }
+        .spec-value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        /* ----- 左右按钮 ----- */
+        .nav-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            font-size: 2em;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .nav-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+        .prev-button { left: 20px; }
+        .next-button { right: 20px; }
+
+        /* ----- 计数器 ----- */
+        .photo-counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* ----- 加载提示 ----- */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2em;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+        }
+
+        /* ----- 移动端适配 ----- */
+        @media (max-width: 768px) {
+            .gallery {
+                width: 95%;
+                height: 60vh;
+            }
+            .photo-info {
+                min-width: 250px;
+                padding: 10px 20px;
+            }
+            .photo-specs { font-size: 0.8em; }
+            .nav-button {
+                padding: 15px;
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ===================== 页面结构 ===================== -->
+    <div class="gallery-container">
+        <div class="gallery">
+            <!-- 计数器：1/5 -->
+            <div class="photo-counter">
+                <span id="current-photo">1</span> / <span id="total-photos">5</span>
+            </div>
+
+            <!-- 照片展示区 -->
+            <div class="photo-container">
+                <img id="current-image" class="photo" src="" alt="摄影作品">
+                <div class="loading" id="loading">加载中...</div>
+            </div>
+
+            <!-- 拍摄参数面板 -->
+            <div class="photo-info" id="photo-info">
+                <h3 id="photo-title">作品标题</h3>
+                <div class="photo-specs">
+                    <div class="spec-item">
+                        <span class="spec-label">拍摄时间:</span>
+                        <span class="spec-value" id="photo-date">-</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">光圈:</span>
+                        <span class="spec-value" id="photo-aperture">-</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">ISO:</span>
+                        <span class="spec-value" id="photo-iso">-</span>
+                    </div>
+                    <div class="spec-item">
+                        <span class="spec-label">快门速度:</span>
+                        <span class="spec-value" id="photo-shutter">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 左右切换按钮 -->
+            <button class="nav-button prev-button" onclick="changePhoto(-1)">‹</button>
+            <button class="nav-button next-button" onclick="changePhoto(1)">›</button>
+        </div>
+    </div>
+
+    <!-- ===================== JavaScript ===================== -->
+    <script>
+        /* ---------- 1. 数据：五张摄影作品 ---------- */
+        const photos = [
+            {
+                title: "城市夜景",
+                url: "https://picsum.photos/1200/800?random=1",
+                date: "2024-01-15",
+                aperture: "f/2.8",
+                iso: "800",
+                shutter: "1/60s"
+            },
+            {
+                title: "山间晨雾",
+                url: "https://picsum.photos/1200/800?random=2",
+                date: "2024-02-20",
+                aperture: "f/5.6",
+                iso: "200",
+                shutter: "1/125s"
+            },
+            {
+                title: "海岸日落",
+                url: "https://picsum.photos/1200/800?random=3",
+                date: "2024-03-10",
+                aperture: "f/8.0",
+                iso: "100",
+                shutter: "1/250s"
+            },
+            {
+                title: "森林小径",
+                url: "https://picsum.photos/1200/800?random=4",
+                date: "2024-04-05",
+                aperture: "f/4.0",
+                iso: "400",
+                shutter: "1/100s"
+            },
+            {
+                title: "星空银河",
+                url: "https://picsum.photos/1200/800?random=5",
+                date: "2024-05-01",
+                aperture: "f/1.8",
+                iso: "3200",
+                shutter: "25s"
+            }
+        ];
+
+        let currentIndex = 0;   // 当前照片索引（0~4）
+
+        /* ---------- 2. 页面加载完成后初始化 ---------- */
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('total-photos').textContent = photos.length; // 设置总张数
+            loadPhoto(currentIndex);                    // 加载第一张
+            initKeyboard();                             // 键盘左右箭头
+            initTouch();                                // 手机滑动
+        });
+
+        /* ---------- 3. 加载并显示指定索引的照片 ---------- */
+        function loadPhoto(index) {
+            const photo = photos[index];
+            const img = document.getElementById('current-image');
+            const loading = document.getElementById('loading');
+
+            loading.style.display = 'block';            // 显示“加载中”
+
+            img.onload = () => {                        // 图片成功加载后
+                loading.style.display = 'none';         // 隐藏提示
+                updatePhotoInfo(photo);                 // 填充参数
+                document.getElementById('current-photo').textContent = index + 1;
+            };
+            img.onerror = () => {                       // 加载失败
+                loading.textContent = '加载失败';
+                setTimeout(() => loading.style.display = 'none', 2000);
+            };
+            img.src = photo.url;                        // 开始加载
+        }
+
+        /* ---------- 4. 更新底部参数面板 ---------- */
+        function updatePhotoInfo(photo) {
+            document.getElementById('photo-title').textContent = photo.title;
+            document.getElementById('photo-date').textContent = photo.date;
+            document.getElementById('photo-aperture').textContent = photo.aperture;
+            document.getElementById('photo-iso').textContent = photo.iso;
+            document.getElementById('photo-shutter').textContent = photo.shutter;
+        }
+
+        /* ---------- 5. 切换照片（方向：-1=左，1=右） ---------- */
+        function changePhoto(direction) {
+            currentIndex += direction;
+            // 循环首尾
+            if (currentIndex < 0) currentIndex = photos.length - 1;
+            if (currentIndex >= photos.length) currentIndex = 0;
+            loadPhoto(currentIndex);
+
+            // 简单缩放动画
+            const img = document.getElementById('current-image');
+            img.style.transform = 'scale(0.9)';
+            setTimeout(() => img.style.transform = 'scale(1)', 100);
+        }
+
+        /* ---------- 6. 键盘左右箭头支持 ---------- */
+        function initKeyboard() {
+            document.addEventListener('keydown', e => {
+                if (e.key === 'ArrowLeft') changePhoto(-1);
+                if (e.key === 'ArrowRight') changePhoto(1);
+            });
+        }
+
+        /* ---------- 7. 手机触摸滑动支持 ---------- */
+        function initTouch() {
+            let touchStartX = 0;
+            const gallery = document.querySelector('.gallery');
+            gallery.addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+            gallery.addEventListener('touchend', e => {
+                const touchEndX = e.changedTouches[0].screenX;
+                if (touchEndX < touchStartX - 50) changePhoto(1);   // 左滑→下一张
+                if (touchEndX > touchStartX + 50) changePhoto(-1);  // 右滑→上一张
+            });
+        }
+
+        /* ---------- 8. 自动播放（默认关闭） ---------- */
+        let autoPlayInterval;
+        function startAutoPlay() {
+            autoPlayInterval = setInterval(() => changePhoto(1), 5000);
+        }
+        function stopAutoPlay() {
+            clearInterval(autoPlayInterval);
+        }
+        // 鼠标悬停时停止自动播放
+        const gallery = document.querySelector('.gallery');
+        gallery.addEventListener('mouseenter', stopAutoPlay);
+        gallery.addEventListener('mouseleave', startAutoPlay);
+        // 如需开启自动播放，取消下行注释：
+        // startAutoPlay();
+    </script>
+</body>
+</html>
