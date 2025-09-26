@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神秘寻宝大冒险</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            color: #ffd700;
+        }
+
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .map-container {
+            position: relative;
+            height: 300px;
+            background: #2c3e50;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 3px solid #34495e;
+        }
+
+        .location {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: #e74c3c;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
+        }
+
+        .location.active {
+            background: #f39c12;
+            transform: scale(1.2);
+            box-shadow: 0 0 30px rgba(243, 156, 18, 0.8);
+        }
+
+        .location.found {
+            background: #27ae60;
+            box-shadow: 0 0 25px rgba(39, 174, 96, 0.7);
+        }
+
+        .library { top: 50px; left: 100px; }
+        .temple { top: 150px; left: 400px; }
+        .cave { top: 80px; left: 600px; }
+        .castle { top: 200px; left: 250px; }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        button {
+            background: linear-gradient(45deg, #e67e22, #d35400);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .log {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .log-entry {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 3px solid #3498db;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .log-entry.success {
+            border-left-color: #27ae60;
+            color: #2ecc71;
+        }
+
+        .log-entry.error {
+            border-left-color: #e74c3c;
+            color: #e74c3c;
+        }
+
+        .treasure {
+            text-align: center;
+            font-size: 24px;
+            color: #ffd700;
+            margin: 20px 0;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        .treasure.revealed {
+            opacity: 1;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: #34495e;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏴‍☠️ 神秘寻宝大冒险 🗺️</h1>
+        
+        <div class="game-area">
+            <div class="map-container">
+                <div class="location library" title="古老图书馆">📚</div>
+                <div class="location temple" title="神秘神庙">🏛️</div>
+                <div class="location cave" title="黑暗洞穴">🕳️</div>
+                <div class="location castle" title="废弃城堡">🏰</div>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+
+            <div class="controls">
+                <button onclick="startAdventure()">开始寻宝冒险</button>
+                <button onclick="resetGame()" id="resetBtn" disabled>重新开始</button>
+            </div>
+
+            <div class="treasure" id="treasureMessage"></div>
+
+            <div class="log" id="gameLog"></div>
+        </div>
+    </div>
+
+    <script>
+        // 扩展的宝藏地图API
+        class TreasureMap {
+            static async getInitialClue() {
+                await delay(1000);
+                return "在古老的图书馆里找到了第一个线索：一张神秘的地图...";
+            }
+
+            static async decodeAncientScript(clue) {
+                if (!clue) {
+                    throw new Error("没有线索可以解码!");
+                }
+                await delay(1500);
+                return "解码成功!地图显示宝藏在一座神秘的神庙中，但需要先找到神庙钥匙...";
+            }
+
+            static async findTempleKey() {
+                await delay(1200);
+                const success = Math.random() > 0.3;
+                if (!success) {
+                    throw new Error("在黑暗洞穴中寻找钥匙时遇到了蝙蝠群!");
+                }
+                return "在黑暗洞穴深处找到了古老的神庙钥匙!";
+            }
+
+            static async searchTemple(location, hasKey) {
+                if (!hasKey) {
+                    throw new Error("没有钥匙无法进入神庙!");
+                }
+                
+                await delay(2000);
+                const success = Math.random() > 0.4;
+                if (!success) {
+                    throw new Error("糟糕!遇到了神庙守卫，需要智取!");
+                }
+                return "成功进入神庙!找到了一个镶嵌宝石的神秘箱子...";
+            }
+
+            static async solvePuzzle() {
+                await delay(1800);
+                const success = Math.random() > 0.25;
+                if (!success) {
+                    throw new Error("箱子的机关太复杂了，需要更多时间研究!");
+                }
+                return "成功解开箱子的古老机关!";
+            }
+
+            static async openTreasureBox() {
+                await delay(1000);
+                return "🎉 恭喜!你找到了传说中的黄金宝藏和失落的王冠! 🏆";
+            }
+
+            static async exploreCastle() {
+                await delay(1500);
+                return "在废弃城堡中发现了额外的宝石和古老金币! 💎";
+            }
+        }
+
+        // 工具函数
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function addLog(message, type = 'info') {
+            const log = document.getElementById('gameLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateProgress(step, totalSteps) {
+            const progress = document.getElementById('progress');
+            const percentage = (step / totalSteps) * 100;
+            progress.style.width = percentage + '%';
+        }
+
+        function highlightLocation(locationClass) {
+            // 移除所有高亮
+            document.querySelectorAll('.location').forEach(loc => {
+                loc.classList.remove('active');
+            });
+            
+            // 高亮当前位置
+            const location = document.querySelector(`.${locationClass}`);
+            if (location) {
+                location.classList.add('active', 'pulse');
+                setTimeout(() => location.classList.remove('pulse'), 1000);
+            }
+        }
+
+        function markLocationFound(locationClass) {
+            const location = document.querySelector(`.${locationClass}`);
+            if (location) {
+                location.classList.add('found');
+            }
+        }
+
+        // 主要的寻宝冒险函数
+        async function findTreasureWithAsyncAwait() {
+            const totalSteps = 6;
+            let currentStep = 0;
+            
+            try {
+                // 步骤1: 获取初始线索
+                highlightLocation('library');
+                addLog("开始寻宝冒险...", "success");
+                updateProgress(++currentStep, totalSteps);
+                
+                const clue = await TreasureMap.getInitialClue();
+                addLog(clue, "success");
+                markLocationFound('library');
+
+                // 步骤2: 解码古老文字
+                updateProgress(++currentStep, totalSteps);
+                const location = await TreasureMap.decodeAncientScript(clue);
+                addLog(location, "success");
+
+                // 步骤3: 寻找神庙钥匙
+                highlightLocation('cave');
+                updateProgress(++currentStep, totalSteps);
+                const key = await TreasureMap.findTempleKey();
+                addLog(key, "success");
+                markLocationFound('cave');
+
+                // 步骤4: 搜索神庙
+                highlightLocation('temple');
+                updateProgress(++currentStep, totalSteps);
+                const box = await TreasureMap.searchTemple(location, true);
+                addLog(box, "success");
+                markLocationFound('temple');
+
+                // 步骤5: 解开谜题
+                updateProgress(++currentStep, totalSteps);
+                const puzzle = await TreasureMap.solvePuzzle();
+                addLog(puzzle, "success");
+
+                // 步骤6: 打开宝藏箱
+                updateProgress(++currentStep, totalSteps);
+                const treasure = await TreasureMap.openTreasureBox();
+                
+                // 额外奖励: 探索城堡
+                highlightLocation('castle');
+                const bonus = await TreasureMap.exploreCastle();
+                addLog(bonus, "success");
+                markLocationFound('castle');
+
+                // 显示最终宝藏
+                const treasureMessage = document.getElementById('treasureMessage');
+                treasureMessage.textContent = treasure;
+                treasureMessage.classList.add('revealed');
+                
+                addLog("🎊 寻宝冒险圆满完成! 你成为了传奇探险家!", "success");
+
+            } catch (error) {
+                addLog(`冒险遇到阻碍: ${error}`, "error");
+                addLog("不要放弃! 点击重新开始按钮再次尝试!", "info");
+            } finally {
+                document.getElementById('resetBtn').disabled = false;
+            }
+        }
+
+        // 游戏控制函数
+        function startAdventure() {
+            const startBtn = document.querySelector('button');
+            startBtn.disabled = true;
+            
+            // 重置游戏状态
+            document.getElementById('gameLog').innerHTML = '';
+            document.getElementById('treasureMessage').classList.remove('revealed');
+            document.getElementById('treasureMessage').textContent = '';
+            document.getElementById('progress').style.width = '0%';
+            
+            // 重置位置标记
+            document.querySelectorAll('.location').forEach(loc => {
+                loc.classList.remove('found', 'active');
+            });
+            
+            findTreasureWithAsyncAwait();
+        }
+
+        function resetGame() {
+            document.getElementById('resetBtn').disabled = true;
+            const startBtn = document.querySelector('button');
+            startBtn.disabled = false;
+            
+            // 清除日志和状态
+            document.getElementById('gameLog').innerHTML = '';
+            document.getElementById('treasureMessage').classList.remove('revealed');
+            document.getElementById('treasureMessage').textContent = '';
+            document.getElementById('progress').style.width = '0%';
+            
+            // 重置位置标记
+            document.querySelectorAll('.location').forEach(loc => {
+                loc.classList.remove('found', 'active');
+            });
+        }
+
+        // 初始化游戏说明
+        addLog("欢迎来到神秘寻宝大冒险!", "success");
+        addLog("点击'开始寻宝冒险'按钮开始你的旅程...", "info");
+        addLog("注意: 每次冒险都会有不同的随机事件发生!", "info");
+    </script>
+</body>
+</html>
